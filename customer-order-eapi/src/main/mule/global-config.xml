@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd">
+			<configuration doc:name="Configuration" doc:id="fa8b0e25-af43-4ad3-8b1f-91466fa28e7a" defaultErrorHandler-ref="global-Error_Handler" />
+	<error-handler name="global-Error_Handler" doc:id="fd1bec41-4387-4172-b5f9-3ab178c7ed2d" >
+		<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="bda1005a-ab26-4f8c-85eb-39495fada2d7" type="SALESFORCE:CONNECTIVITY">
+				<logger level="INFO" doc:name="Logger" doc:id="6639983a-9da2-4942-acd3-0051f4817d2e" message="Issue whie connecting to salesforce while adding record #[payload.name]" />
+				<set-variable value="500" doc:name="httpStatus" doc:id="580b0e7b-863d-44c3-b2f4-947e00e3d216" variableName="httpStatus"/>
+			<ee:transform doc:name="Transform Message" doc:id="2fe99354-f1e6-4daa-a2df-f5318780c1a0">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	code:500,
+	Error: "issue while connecting to salesforce"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="d0644fcc-d496-4dd3-96bf-ec7972994fb1" type="SALESFORCE:MUTUAL_AUTHENTICATION_FAILED">
+				<logger level="INFO" doc:name="Logger" doc:id="1b242aa7-20f5-48bd-9b6b-cf6d061a2601" message="Issue whie connecting to salesforce while adding record #[payload.name]" />
+				<set-variable value="500" doc:name="httpStatus" doc:id="767a53c9-8b71-4c1c-9927-ad0c30f77a4c" variableName="httpStatus" />
+			<ee:transform doc:name="Transform Message" doc:id="f196155f-7f51-460b-811a-923d351f5499">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	code:500,
+	Error: "Authentication failed"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			
+</on-error-propagate>
+		<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="cf13eade-25a9-4f00-b0a4-ccf6c371f5d4" when="#[error.errorType.namespace=='SALESFORCE']">
+			<logger level="INFO" doc:name="Logger" doc:id="b8b2dae7-d724-4ba4-a3e9-69d8742a73fd" message="Issue whie processing salesforce while adding record #[payload.name]" />
+			<set-variable value="500" doc:name="httpStatus" doc:id="8a0b42c5-2531-405e-94a8-533983a02d03" variableName="httpStatus" />
+			<ee:transform doc:name="Transform Message" doc:id="5e9bae55-5716-42fc-b6ab-534549ac3411" >
+				<ee:message >
+					<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	code:500,
+	Error: "Salesforce processing error"
+}]]></ee:set-payload>
+				</ee:message>
+			</ee:transform>
+		</on-error-propagate>
+		<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="54cc053f-ee61-4723-b78e-c2e4af5a1157" type="EXPRESSION">
+				<logger level="INFO" doc:name="Logger" doc:id="7ffb2b41-950c-40bb-88fa-c17272bc9570" message="error occured while doing transformation #[payload]" />
+			<set-variable value="500" doc:name="httpStatus" doc:id="0a53d87c-dd6b-46d0-845c-150f4b9b42ac" variableName="httpStatus" />
+			<ee:transform doc:name="Transform Message" doc:id="2a3c1c7a-2fe7-4ab7-a3c4-45216e5c2e3c" >
+				<ee:message >
+					<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	code: 500,
+	error: "expression error"
+}]]></ee:set-payload>
+				</ee:message>
+			</ee:transform>
+			
+</on-error-propagate>
+		<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="a561a574-46a1-4d2b-82c0-9327103247d8" type="ANY">
+			<logger level="INFO" doc:name="Logger" doc:id="bfecf5bc-d5e5-47da-a789-77bb8fb39920" message="Issue while adding record #[payload.name]" />
+			<set-variable value="#[error.description]" doc:name="error description" doc:id="77b26f01-591a-4540-9d33-76c044bcbd5f" variableName="errorMessage"/>
+			<set-variable value="500" doc:name="httpStatus" doc:id="1e6917ae-f176-41d5-b123-403481c1e3a1" variableName="httpStatus" />
+			<ee:transform doc:name="Transform Message" doc:id="e6499451-8559-4012-aa34-e3acd4d836fd" >
+				<ee:message >
+					<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	code:500,
+	Error: vars.errorMessage
+}]]></ee:set-payload>
+				</ee:message>
+			</ee:transform>
+		</on-error-propagate>
+	</error-handler>
+</mule>

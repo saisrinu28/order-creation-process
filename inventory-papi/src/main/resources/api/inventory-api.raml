@@ -1,0 +1,20 @@
+#%RAML 1.0
+title: inventorySAPI
+uses:
+  lib: exchange_modules/00e5ebe0-49a9-4964-9683-21347241932a/ordertypes/4.0.0/ordertypes.raml
+
+/inventory:
+  type: {lib.collection : {typeName: lib.inventoryType}}
+  get:
+    queryParameters:
+        item?: string
+        category?: string
+        price?: number
+        suppilerName?: string
+        madeInCountry?: string 
+                   
+    
+  /{param}:
+     type: {lib.item : {typeName : lib.inventoryType}}
+    
+      

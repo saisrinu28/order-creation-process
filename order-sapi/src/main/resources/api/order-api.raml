@@ -1,0 +1,20 @@
+#%RAML 1.0
+title: order-api
+
+uses:
+  lib: exchange_modules/00e5ebe0-49a9-4964-9683-21347241932a/ordertypes/3.0.0/ordertypes.raml
+
+/orders:
+  type: {
+    lib.collection : {typeName: orderType}
+  }
+  /{orderId}:
+    type: {
+      lib.item : {typeName: orderType}
+    }
+          
+
+     
+
+                                                                        
+                        

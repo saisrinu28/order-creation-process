@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:os="http://www.mulesoft.org/schema/mule/os" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd 
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd">
+    
+    <apikit:config name="customer-order-api-config" api="customer-order-api.raml" outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus" />
+    <http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="8c54880c-e33a-4ab6-b75a-4c8f054c1856" >
+		<http:request-connection host="localhost" port="8081" />
+	</http:request-config>
+	<os:object-store name="cust-order-os" doc:name="Object store" doc:id="01ac9346-dd1d-4c02-af66-c573f0bd94ee" />
+	<sub-flow name="customerRequestSubFlow" doc:id="46ef63f3-d523-45ce-91b6-60e2c39a42b6" >
+		<http:request method="GET" doc:name="Request" doc:id="3888408f-3779-4e8e-a419-533cede0d005" config-ref="HTTP_Request_configuration" path="/order-system/customer-api/customers/{custId}" target="customerPayload">
+			<http:uri-params><![CDATA[#[output application/java
+---
+{
+	"custId" : vars.customerRef
+}]]]></http:uri-params>
+		</http:request>
+	</sub-flow>
+	<sub-flow name="getCustOrders" doc:id="b090530f-e160-4b24-b65d-0bb57d5edd30" >
+		<http:request method="GET" doc:name="orderRequest" doc:id="a562e82e-48e6-4a8a-99f6-762e34b36788" config-ref="HTTP_Request_configuration" path="/order-system/api/orders">
+		</http:request>
+		<foreach doc:name="For Each" doc:id="8ac30338-0f09-469a-b633-d9488dc27282" collection="#[payload]">
+			<set-variable value="#[payload.CUSTOMERREF]" doc:name="Set Variable" doc:id="6a017665-9b99-491f-bac4-0c578a30ad6b" variableName="customerRef" />
+			<flow-ref doc:name="Flow Reference" doc:id="fd1ea89f-8349-4381-82b1-eeb7402a3692" name="customerRequestSubFlow" />
+			<ee:transform doc:name="Transform Message" doc:id="750349b5-3a51-4e85-a5b0-0161c61c88ad">
+				<ee:message>
+					<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"order" : payload,
+	"customer": vars.customerPayload
+}]]></ee:set-payload>
+				</ee:message>
+			</ee:transform>
+			<os:store doc:name="Store" doc:id="dab1018c-423f-42c8-8995-94fb088a61ba" key="#[vars.counter]" objectStore="cust-order-os">
+			</os:store>
+		</foreach>
+		<os:retrieve-all-keys doc:name="Retrieve all keys" doc:id="3dfa4297-241e-4c0c-ac3c-00e76c894c17" objectStore="cust-order-os" />
+		<set-variable value="#[%dw 2.0&#10;output application/json&#10;---&#10;[]]" doc:name="Set Variable" doc:id="c1adf15c-f43f-4b48-abe2-2e555f5d8970" variableName="customerOrders"/>
+		<foreach doc:name="For Each" doc:id="a0e34dc3-e696-463f-be83-3d5ba7524ba1">
+			<os:retrieve doc:name="Retrieve" doc:id="bb3bf399-3bf8-4a2c-a3ca-1fc8b345f7d1" key="#[payload]" objectStore="cust-order-os" />
+			<logger level="INFO" doc:name="Logger" doc:id="413ac499-d57f-42e3-80a0-f42b107e2270" message="retrieved from object store #[payload]"/>
+			<ee:transform doc:name="Transform Message" doc:id="7b7555dc-fdc3-4f66-81eb-ed529dcfa912">
+				<ee:message>
+				</ee:message>
+				<ee:variables>
+					<ee:set-variable variableName="customerOrders"><![CDATA[%dw 2.0
+output application/json
+---
+vars.customerOrders + payload]]></ee:set-variable>
+				</ee:variables>
+			</ee:transform>
+		</foreach>
+		<os:clear doc:name="Clear" doc:id="559fe660-cf6b-40de-9185-74ac19a14beb" objectStore="cust-order-os"/>
+		<ee:transform doc:name="Transform Message" doc:id="e1f604e1-da8e-4356-ab89-caedde4ab42c" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+vars.customerOrders filter ((item, index) -> item !=null )]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<set-payload value="#[vars.customerOrders]" doc:name="Set Payload" doc:id="6c7f5b04-52f1-4139-a9bf-5323c1ef25fe" />
+		<logger level="INFO" message="customer Orders are #[vars.customerOrders]" />
+	</sub-flow>
+	<flow name="customer-order-api-main">
+        <http:listener config-ref="order-api-httpListenerConfig" path="/customer-order/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body><![CDATA[#[payload]]]></http:body>
+                <http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:router config-ref="customer-order-api-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:BAD_REQUEST">
+                <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Bad request"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">400</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:METHOD_NOT_ALLOWED">
+                <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Method not allowed"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">405</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_ACCEPTABLE">
+                <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not acceptable"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">406</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:UNSUPPORTED_MEDIA_TYPE">
+                <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Unsupported media type"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">415</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_IMPLEMENTED">
+                <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not Implemented"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">501</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="customer-order-api-console">
+        <http:listener config-ref="order-api-httpListenerConfig" path="/console/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body><![CDATA[#[payload]]]></http:body>
+                <http:headers><![CDATA[#[vars.outboundHeaders default {}]]]></http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:console config-ref="customer-order-api-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="put:\customerOrders\(orderId):application\json:customer-order-api-config">
+        <ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core">
+            <ee:variables>
+                <ee:set-variable variableName="orderId">attributes.uriParams.'orderId'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+        <logger level="INFO" message="put:\customerOrders\(orderId):application\json:customer-order-api-config" />
+    </flow>
+    <flow name="get:\customerOrders:customer-order-api-config">
+		<flow-ref doc:name="Flow Reference" doc:id="c5cb5086-fb62-40e3-9e60-ad059c17af0c" name="getCustOrders"/>
+    </flow>
+    <flow name="get:\customerOrders\(orderId):customer-order-api-config">
+		<ee:transform xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core">
+            <ee:variables>
+                <ee:set-variable variableName="orderId">attributes.uriParams.'orderId'</ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+		<until-successful maxRetries="3" doc:name="Until Successful" doc:id="fc1db591-51d0-4181-9b33-828946df91ce" >
+			<http:request method="GET" doc:name="Request" doc:id="1979c71d-cf2b-4224-8332-5351967d9eb7" config-ref="HTTP_Request_configuration" path="/order-system/api/orders">
+			<http:uri-params><![CDATA[#[output application/java
+---
+{
+	"orderId" : attributes.uriParams.orderId
+}]]]></http:uri-params>
+		</http:request>
+		</until-successful>
+		<logger level="INFO" doc:name="Logger" doc:id="87e4ed3a-3c01-4a70-9721-36880d8a422c" message="the response from Order API is #[payload]"/>
+		<set-variable value="#[payload[0].CUSTOMERREF]" doc:name="Set Variable" doc:id="e00ef721-f587-40cc-bbec-c77ee12650e2" variableName="customerRef"/>
+		<logger level="INFO" doc:name="Logger" doc:id="9b616598-ac4d-4901-a31c-caaa0d0b7085" message="#[vars.customerRef]"/>
+		<flow-ref doc:name="Flow Reference" doc:id="6d6cef88-d3d0-4b73-86fa-0dade3589d94" name="customerRequestSubFlow" />
+		<ee:transform doc:name="Transform Message" doc:id="4f3b723f-7b29-4bd7-966e-76387f50da78" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	order: payload[0],
+	customer: vars.customerPayload
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+    </flow>
+    <flow name="post:\customerOrders:application\json:customer-order-api-config">
+		<http:request method="POST" doc:name="orderRequest" doc:id="86490a9d-d1d8-4d2d-9742-c2e25dbb65d6" config-ref="HTTP_Request_configuration" path="/order-system/api/orders" target="orderResponse">
+			<http:body ><![CDATA[#[payload.order]]]></http:body>
+		</http:request>
+		<http:request method="POST" doc:name="customerRequest" doc:id="faba58fa-6b52-404a-8892-7b0388e283ef" config-ref="HTTP_Request_configuration" path="/order-system/customer-api/customers" target="customerResponse">
+			<http:body ><![CDATA[#[payload.customer]]]></http:body>
+		</http:request>
+		<logger level="INFO" message="post:\customerOrders:application\json:customer-order-api-config" />
+    </flow>
+</mule>

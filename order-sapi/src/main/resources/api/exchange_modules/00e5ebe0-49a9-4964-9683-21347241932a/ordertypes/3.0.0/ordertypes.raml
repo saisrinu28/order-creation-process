@@ -1,0 +1,111 @@
+#%RAML 1.0 Library
+usage:
+
+types:
+  inventoryType:
+    type: object
+    properties:
+      item: string
+      category: string
+      quantity: integer
+      price: number
+      manufacturedDate?: date-only
+      expiryDate?: date-only
+      suppilerName?: string
+      madeInCountry?: string
+    example:
+      !include examples/inventoryExample.raml
+
+  orderType:
+    type: object
+    properties:
+      orderId?: string
+      item: string
+      quantity : integer
+      orderDate?: date-only
+      customerRef: string
+      status?: string
+    example:
+      !include examples/orderExample.raml
+
+  customerType:
+    type: object
+    properties:
+      name: string
+      contactNo: string
+      street?: string
+      city?: string
+    example:
+       !include examples/customerExample.raml
+
+  customerOrder:
+    type: object
+    properties:
+      order : orderType
+      customer: customerType 
+    example:
+       !include examples/customerOrderExample.raml       
+  
+  errorType:
+    type: object
+    properties:
+      code: string
+      description: string
+  
+traits:
+  hasResponseCollection:
+     responses:
+      200:
+        body:
+          application/json:
+            type: <<typeName>>[]
+   
+  hasRequestItem:
+    body:
+      application/json:
+         type: <<typeName>>
+
+  hasResponseItem:
+     responses:
+      200:
+        body:
+          application/json:
+            type: <<typeName>>  
+
+  errorResponse:
+    responses:
+      401:
+        body:
+          application/json:
+            type: errorType
+      400:
+        body:
+          application/json:
+            type: errorType
+      500:
+         body:
+           application/json:
+             type: errorType
+                                             
+
+resourceTypes:
+  item:        
+   usage: Use this resourceType to represent any single item
+   get:
+       description: Get a <<typeName>>
+       is: [ hasResponseItem: { typeName: <<typeName>> }, errorResponse]
+   put:
+     description: Update a <<typeName>>
+     is: [ hasRequestItem: { typeName: <<typeName>> },  errorResponse ]
+
+  collection:
+    usage: Use this resourceType to represent any collection of items
+    get:
+      description:  Get all <<typeName>>,  optionally filtered
+      is: [hasResponseCollection: {typeName: <<typeName>>},  errorResponse  ]
+    post:
+      description: Create a new <<typeName|!singularize>>
+      is: [hasRequestItem: {typeName: <<typeName>>},  errorResponse]
+        
+        
+                               

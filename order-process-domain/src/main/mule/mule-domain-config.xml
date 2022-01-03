@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<domain:mule-domain
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:spring="http://www.mulesoft.org/schema/mule/spring"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:domain="http://www.mulesoft.org/schema/mule/ee/domain"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce"
+	xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd 
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd 
+               http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+               http://www.mulesoft.org/schema/mule/ee/domain http://www.mulesoft.org/schema/mule/ee/domain/current/mule-domain-ee.xsd
+               http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+http://www.mulesoft.org/schema/mule/spring http://www.mulesoft.org/schema/mule/spring/current/mule-spring.xsd">
+
+
+	<!-- configure here resource to be shared within the domain -->
+	<spring:config name="Spring_Config"
+		doc:name="Spring Config" doc:id="842bd4f5-56ab-46a7-b39e-2f54ff98dcb5"
+		files="spring-beans.xml" />
+
+	<http:listener-config
+		name="order-api-httpListenerConfig" basePath="order-system">
+		<http:listener-connection host="0.0.0.0"
+			port="8081" />
+	</http:listener-config>
+	<db:config name="Database_Config" doc:name="Database Config"
+		doc:id="57bfa3ab-79dc-4ef1-b717-46f1c3b9a102">
+		<db:generic-connection url="${db.url}"
+			driverClassName="${db.driverClass}" />
+	</db:config>
+	<configuration-properties
+		doc:name="Configuration properties"
+		doc:id="93ccdd7e-bdf9-4a92-95e7-15f14c1e8329"
+		file="env-dev-props.yaml" />
+		
+	<salesforce:sfdc-config name="Salesforce_Config"
+		doc:name="Salesforce Config"
+		doc:id="92c8a146-6573-4051-9b90-55808bdd8c12">
+		<salesforce:basic-connection
+			username="srinuprasad@hotmail.com" password="SriDattasai@1868"
+			securityToken="xTHjIZdtJLxYLEAyVrbbKc3x" />
+	</salesforce:sfdc-config>
+</domain:mule-domain>

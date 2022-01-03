@@ -1,0 +1,4 @@
+%dw 2.0
+
+type auto_46ef63f3_d523_45ce_91b6_60e2c39a42b6_Input_Variables_customerRef = Any
+
